@@ -51,49 +51,29 @@ vSkin 当前推荐以下运行方式：
 
 这意味着你不再需要分别处理前端容器和后端容器，也不需要担心跨端口访问、Cookie/回调地址错乱、反向代理遗漏导致的无法注册或无法登录问题。
 
-### 准备配置文件
+### 环境变量配置
 
-先在项目根目录创建或修改 `config.yaml`：
+vSkin 通过环境变量进行配置，无需手动创建配置文件。所有配置项均支持 `KEY__SUBKEY` 格式的环境变量覆盖（双下划线表示嵌套层级），未设置的项会使用内置默认值。
 
-```yaml
-jwt:
-  secret: "CHANGE-ME-TO-A-LONG-RANDOM-SECRET"
+Docker Compose 已预置以下数据路径环境变量，无需修改：
 
-keys:
-  private_key: "/data/private.pem"
-  public_key: "/data/public.pem"
+| 环境变量 | 默认值 | 说明 |
+|----------|--------|------|
+| `DATABASE__PATH` | `/data/yggdrasil.db` | 数据库文件路径 |
+| `KEYS__PRIVATE_KEY` | `/data/private.pem` | RSA 私钥路径 |
+| `TEXTURES__DIRECTORY` | `/data/textures` | 材质存储目录 |
+| `CAROUSEL__DIRECTORY` | `/data/carousel` | 轮播图目录 |
 
-database:
-  path: "/data/yggdrasil.db"
+如需自定义其他配置，在 `docker-compose.yml` 的 `environment` 中添加对应环境变量即可：
 
-textures:
-  directory: "/data/textures"
+| 环境变量 | 说明 | 示例 |
+|----------|------|------|
+| `JWT__SECRET` | JWT 签名密钥（生产环境务必修改） | `my-long-random-secret` |
+| `SERVER__SITE_URL` | 站点外部访问地址 | `https://skin.example.com` |
+| `SERVER__API_URL` | API 外部访问地址 | `https://skin.example.com/skinapi` |
+| `CORS__ALLOW_ORIGINS` | CORS 允许的来源（逗号分隔） | `https://skin.example.com` |
 
-carousel:
-  directory: "/data/carousel"
-
-server:
-  host: "0.0.0.0"
-  port: 8000
-  root_path: ""
-  site_url: "https://skin.example.com"
-  api_url: "https://skin.example.com/skinapi"
-
-cors:
-  allow_origins:
-    - "https://skin.example.com"
-  allow_credentials: true
-
-mojang:
-  session_url: "https://sessionserver.mojang.com"
-  account_url: "https://api.mojang.com"
-  services_url: "https://api.minecraftservices.com"
-  skin_domains:
-    - "textures.minecraft.net"
-  cache_ttl: 3600
-```
-
-> 注意：`server.site_url` 必须填写你实际访问站点的外部地址，`server.api_url` 必须填写对应的 `/skinapi` 地址，否则微软登录回调、材质地址和部分前端请求会异常。
+> 注意：`SERVER__SITE_URL` 必须填写你实际访问站点的外部地址，`SERVER__API_URL` 必须填写对应的 `/skinapi` 地址，否则微软登录回调、材质地址和部分前端请求会异常。
 
 > 设备授权流的共享客户端、设备码有效期、轮询间隔和默认回调占位地址都在后台「OAuth 应用」页直接配置，保存后立即生效，不需要修改配置文件，也不需要重启后端。
 
@@ -102,7 +82,7 @@ mojang:
 项目根目录中的 `docker-compose.yml` 已可直接使用：
 
 ```yaml
-version: '3.8'
+name: vskin
 
 services:
   app:
@@ -118,10 +98,16 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./config.yaml:/app/config.yaml:ro
-      - ./data:/data
+      - vskin_data:/data
     environment:
       - SERVER__ROOT_PATH=/skinapi
+      - DATABASE__PATH=/data/yggdrasil.db
+      - KEYS__PRIVATE_KEY=/data/private.pem
+      - TEXTURES__DIRECTORY=/data/textures
+      - CAROUSEL__DIRECTORY=/data/carousel
+
+volumes:
+  vskin_data:
 ```
 
 然后执行：
@@ -187,7 +173,7 @@ server {
 4. 后台可将用户调整为老师（紫色标签）或管理员（蓝色标签）。
 5. 管理员拥有与超级管理员近似的后台能力，但不能将他人设为管理员；仅超级管理员可任命管理员。
 6. 登录后台后完成站点设置、邮件服务和注册策略配置。
-7. 检查 `config.yaml` 中的 `site_url` 与 `api_url` 是否已经替换为正式域名。
+7. 检查环境变量 `SERVER__SITE_URL` 与 `SERVER__API_URL` 是否已设置为正式域名。
 8. 如需外部站点接入登录，进入后台的「OAuth 应用」页面创建应用并保存 `client_secret`。
 9. 如需设备授权登录，进入后台「OAuth 应用」页，点击“新增授权设备应用”或把已有应用设为“授权设备共享客户端”。
 
@@ -351,10 +337,8 @@ npm run dev
 vSkin/
 ├── vskin/               # Vue 3 前端
 ├── skin-backend/        # FastAPI 后端
-├── config.yaml          # 宿主机配置文件
 ├── docker-compose.yml   # Docker Compose 编排文件
-├── nginx-host.conf      # 反向代理配置示例
-└── data/                # 数据目录（数据库、密钥、材质、轮播图）
+└── nginx-host.conf      # 反向代理配置示例
 ```
 
 ## 自动化测试
