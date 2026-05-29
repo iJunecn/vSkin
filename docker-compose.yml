@@ -18,6 +18,10 @@ services:
       - vskin_data:/data
     environment:
       - SERVER__ROOT_PATH=${SERVER__ROOT_PATH:-/skinapi}
+      - DATABASE__PATH=/data/yggdrasil.db
+      - KEYS__PRIVATE_KEY=/data/private.pem
+      - TEXTURES__DIRECTORY=/data/textures
+      - CAROUSEL__DIRECTORY=/data/carousel
 
 volumes:
   vskin_data:
